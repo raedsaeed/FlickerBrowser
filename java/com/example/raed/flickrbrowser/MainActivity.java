@@ -1,50 +1,80 @@
 package com.example.raed.flickrbrowser;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ProgressBar;
 import android.widget.Toast;
+
+import com.example.raed.flickrbrowser.di.ViewModelFactory;
+import com.example.raed.flickrbrowser.objects.Photo;
+import com.example.raed.flickrbrowser.objects.Result;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends BaseActivity implements GetFlickrJsonData.OnAvailableData, RecyclerItemClicklistener.OnRecyclerClickListener {
+import javax.inject.Inject;
+
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+public class MainActivity extends BaseActivity implements RecyclerItemClicklistener.OnRecyclerClickListener {
     private static final String TAG = "MainActivity";
+    @Inject
+    ViewModelFactory mViewModelFactory;
     private FlickrRecyclerViewAdapter mFlickrRecyclerViewAdapter;
+    private ProgressBar mProgressBar;
+    private PhotoViewModel mPhotoViewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        getActivityComponent().inject(this);
+
         setContentView(R.layout.activity_main);
         activeActionBar(false);
+
 
         RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recycle_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.addOnItemTouchListener(new RecyclerItemClicklistener(this, recyclerView, this));
 
-        mFlickrRecyclerViewAdapter = new FlickrRecyclerViewAdapter(this,new ArrayList<Photo>());
+        mProgressBar = findViewById(R.id.progress_bar);
+
+        mFlickrRecyclerViewAdapter = new FlickrRecyclerViewAdapter(this, new ArrayList<Photo>());
         recyclerView.setAdapter(mFlickrRecyclerViewAdapter);
+
+        mPhotoViewModel = new ViewModelProvider(this, mViewModelFactory).get(PhotoViewModel.class);
+        mPhotoViewModel.getPhotoData().observe(this, this::populateUI);
+        mPhotoViewModel.getPhotos("dog");
+    }
+
+    private void populateUI(Result<List<Photo>> result) {
+        switch (result.getStatus()) {
+            case ERROR:
+                mProgressBar.setVisibility(View.GONE);
+                Toast.makeText(this, "Error", Toast.LENGTH_SHORT).show();
+                break;
+
+            case LOADING:
+                mProgressBar.setVisibility(View.VISIBLE);
+                break;
+
+            case SUCCESS:
+                mProgressBar.setVisibility(View.GONE);
+                mFlickrRecyclerViewAdapter.loadNewData(result.getData());
+                break;
+        }
     }
 
     @Override
     protected void onResume() {
         Log.d(TAG, "onResume: Starts");
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-        String queryResult = sharedPreferences.getString(FLICKER_QUERY,"");
-        if(queryResult.length() > 0 ) {
-            GetFlickrJsonData getFlickrJsonData = new GetFlickrJsonData(this, "https://api.flickr.com/services/feeds/photos_public.gne", "en-us", true);
-            getFlickrJsonData.execute(queryResult);
-        }
-        Log.d(TAG, "onResume: Ends");
         super.onResume();
     }
 
@@ -66,8 +96,8 @@ public class MainActivity extends BaseActivity implements GetFlickrJsonData.OnAv
         if (id == R.id.action_settings) {
             return true;
         }
-        if(id == R.id.action_search){
-            Intent intent = new Intent(this,SearchActivity.class);
+        if (id == R.id.action_search) {
+            Intent intent = new Intent(this, SearchActivity.class);
             startActivity(intent);
             return true;
         }
@@ -76,21 +106,11 @@ public class MainActivity extends BaseActivity implements GetFlickrJsonData.OnAv
     }
 
     @Override
-    public void onAvailableData(List<Photo> data, DownloadStatus status) {
-        Log.d(TAG, "onAvailableData: starts");
-        if(status == DownloadStatus.OK) {
-            mFlickrRecyclerViewAdapter.loadNewData(data);
-        }
-        else Log.d(TAG, "onAvailableData: Error downloading data");
-        Log.d(TAG, "onAvailableData: ends");
-    }
-
-    @Override
     public void onItemClick(View view, int position) {
         Log.d(TAG, "onItemClick: starts");
 //        Toast.makeText(MainActivity.this, "Normal tap at position "+ position,Toast.LENGTH_SHORT).show();
-        Intent intent = new Intent(this,PhotoDetailActivity.class);
-        intent.putExtra(PHOTO_TRANSFER,mFlickrRecyclerViewAdapter.getPhoto(position));
+        Intent intent = new Intent(this, PhotoDetailActivity.class);
+        intent.putExtra(PHOTO_TRANSFER, mFlickrRecyclerViewAdapter.getPhoto(position));
         startActivity(intent);
     }
 

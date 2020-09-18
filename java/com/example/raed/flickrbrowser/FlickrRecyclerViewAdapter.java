@@ -1,8 +1,8 @@
 package com.example.raed.flickrbrowser;
 
 import android.content.Context;
-import android.net.Uri;
-import android.support.v7.widget.RecyclerView;
+
+import androidx.recyclerview.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -10,6 +10,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.example.raed.flickrbrowser.objects.Photo;
 import com.squareup.picasso.Picasso;
 
 import java.util.List;
@@ -43,7 +44,7 @@ class FlickrRecyclerViewAdapter extends RecyclerView.Adapter <FlickrRecyclerView
             Photo photoItem = mPhotoList.get(position);
             Log.d(TAG, "onBindViewHolder: " + photoItem.getTitle() + "----> " + position);
 
-            Picasso.with(mContext).load(photoItem.getImage())
+            Picasso.with(mContext).load(photoItem.getUrlM())
                     .error(R.drawable.imageholder)
                     .placeholder(R.drawable.imageholder)
                     .into(holder.thumbnail);
